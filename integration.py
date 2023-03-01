@@ -23,33 +23,30 @@ def extract_excel_file_from_evan(driver):
     driver.find_element(By.CLASS_NAME, "inputPass").send_keys(os.getenv("evan_password"))
     driver.find_element(By.CLASS_NAME, "inputButton").click()
     driver.find_element(By.ID, "nav-10").click()
-    integration_xpath = '''//*[@id="subnav-10"]/li[3]'''
-    driver.find_element(By.XPATH, integration_xpath).click()
-    time.sleep(3)
+    driver.find_element(By.XPATH, '''//*[@id="nav-10"]/a''').click()
+    driver.find_element(By.XPATH, '''//*[@id="subnav-10"]/li[3]/a''').click()
+    time.sleep(2)
     driver.find_element(By.XPATH, '''//*[@id="Grid_output_grid_GridData"]/div[3]/div[2]/div[8]''').click()
-    time.sleep(3)
-    driver.find_element(By.XPATH, '''//*[@id="Grid_output_grid_Row6-Column5"]''').click()
-    time.sleep(3)
-    driver.find_element(By.XPATH, '''//*[@id="outputForm"]/table/tbody/tr[11]/td[1]/table/tbody/tr[1]/td[1]''').click()
-    driver.find_element(By.XPATH, '''//*[@id="outputForm"]/table/tbody/tr[12]/td/input''').click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, '''//*[@id="Grid_output_grid_Row6-Column7"]''').click()
     time.sleep(10)
 
 
 def extract_excel_file_from_dionaks(driver):
-    login_url = "https://frankebursa.myideasoft.com/admin/auth/login?redirect_uri=%2Fadmin"
-    driver.get(login_url)
-    driver.find_element(By.CLASS_NAME, "inputName").send_keys(os.getenv("dionaks_username"))
-    driver.find_element(By.CLASS_NAME, "inputPass").send_keys(os.getenv("dionaks_password"))
+    url = "https://dionaks.com/admin"
+    driver.get(url)
+    #logging in to the system
+    driver.find_element(By.ID, "username").send_keys(os.getenv("dionaks_username"))
+    driver.find_element(By.ID, "pass").send_keys(os.getenv("dionaks_password"))
+    time.sleep(1)
     driver.find_element(By.CLASS_NAME, "inputButton").click()
+    #going for the file to be extracted
     driver.find_element(By.ID, "nav-10").click()
-    integration_xpath = '''//*[@id="subnav-10"]/li[3]'''
-    driver.find_element(By.XPATH, integration_xpath).click()
+    driver.find_element(By.XPATH, '''//*[@id="subnav-10"]/li[3]''').click()
     time.sleep(3)
-    driver.find_element(By.XPATH, '''//*[@id="Grid_output_grid_Row15-Column5"]''').click()
-    time.sleep(3)
-    driver.find_element(By.XPATH, '''//*[@id="outputForm"]/table/tbody/tr[11]/td[1]/table/tbody/tr[1]/td[1]''').click()
-    driver.find_element(By.XPATH, '''//*[@id="outputForm"]/table/tbody/tr[12]/td/input''').click()
-    time.sleep(10)
+    # this is the section where we actually choose our file
+    driver.find_element(By.XPATH, '''//*[@id="Grid_output_grid_Row13-Column7"]/a''').click()
+    time.sleep(30)
 
 
 def excel_read(fpath, cname):
@@ -70,38 +67,39 @@ def excel_read(fpath, cname):
             stock_code_list.append(str(code[0]))
     return stock_code_list
 
-def mutual_list_returner(evan_fpath, dionaks_fpath, cname, price_column, rebate_column, rebate_type_column):
+def mutual_list_returner(evan_fpath, dionaks_fpath, cname, price_column, rebate_column, rebate_type_column, stock_column, stock_type_column):
     evan_code_list = excel_read(evan_fpath, cname)
     dionaks_code_list = excel_read(dionaks_fpath, cname)
     evan_price_list = excel_read(evan_fpath, price_column)
     evan_rebate_list = excel_read(evan_fpath, rebate_column)
     evan_rebate_type_list = excel_read(evan_fpath, rebate_type_column)
+    evan_stock_list = excel_read(evan_fpath, stock_column)
+    evan_stock_type_list = excel_read(evan_fpath, stock_type_column)
     evan_list_general = []
     for i in range(len(evan_code_list)):
-        product_tuple = (evan_code_list[i], evan_price_list[i], evan_rebate_list[i], evan_rebate_type_list[i])
+        product_tuple = (evan_code_list[i], evan_price_list[i], evan_rebate_list[i], evan_rebate_type_list[i], evan_stock_list[i], evan_stock_type_list[i])
         evan_list_general.append(product_tuple)
 
     mutual_list = []
     for p in dionaks_code_list:
         if p in evan_code_list:
             index = int(evan_code_list.index(p))
-            mutual_tuple = (p, evan_list_general[index][1], evan_list_general[index][2], evan_list_general[index][3])
+            mutual_tuple = (p, evan_list_general[index][1], evan_list_general[index][2], evan_list_general[index][3], evan_list_general[index][4], evan_list_general[index][5])
             mutual_list.append(mutual_tuple)
     return mutual_list
 
 def create_dataframe_and_extract_to_xls(headers, data_list):
     data_for_excel = []
     for i in data_list:
-        row_list = [i[0], i[1], i[2], i[3]]
+        row_list = [i[0], i[1], i[2], i[3], i[4], i[5]]
         data_for_excel.append(row_list)
 
     df = pd.DataFrame(data_for_excel, columns=headers)
-    fpath = "/Users/godfather/PycharmProjects/testProject/dionaks_new_franke_prices.xls"
-    if os.path.exists(fpath) == True:
+    fpath = "/Users/godfather/PycharmProjects/testProject/dionaks_new_prices_and_stocks.xls"
+    if os.path.exists(fpath):
         os.remove(fpath)
-    else:
-        pass
-    df.to_excel("dionaks_new_franke_prices.xls", sheet_name="products_info")
+
+    df.to_excel("dionaks_new_prices_and_stocks.xls", sheet_name="products_info")
 
 def submit_file_to_dionaks(driver):
     driver.find_element(By.ID, "nav-10").click()
@@ -112,17 +110,22 @@ def submit_file_to_dionaks(driver):
     select.select_by_visible_text("Excel")
     time.sleep(3)
     file = driver.find_element(By.XPATH, '''//*[@id="sourceFileUploadForm"]/div/div[3]/div[1]/div/input''')
-    file.send_keys(r"/Users/godfather/Desktop/integrationProject/dionaks_new_franke_prices.xls")
+    file.send_keys(r"/Users/godfather/PycharmProjects/seleniumProject/dionaks_new_prices_and_stocks.xls")
     time.sleep(3)
     driver.find_element(By.XPATH, '''//*[@id="sourceFileUploadForm"]/div/div[3]/div[2]/input''').click()
-    time.sleep(3)
+    time.sleep(10)
     driver.find_element(By.XPATH, '''//*[@id="contentWrapper"]/div/div/div[2]/div[1]/input''').click()
     time.sleep(3)
     driver.find_element(By.XPATH, '''//*[@id="contentWrapper"]/div/div/div[2]/div[6]/div[2]/div/div[2]/div/div[1]/ul/li[3]/a''').click()
     time.sleep(3)
     driver.find_element(By.XPATH, '''//*[@id="taxstatus1"]''').click()
-    time.sleep(1)
+    time.sleep(3)
     driver.find_element(By.XPATH, '''//*[@id="taxstatus1"]/option[2]''').click()
     driver.find_element(By.XPATH, '''//*[@id="contentWrapper"]/div/div/div[2]/div[6]/div[2]/div/div[2]/div/div[2]/div[3]/form/div/div[6]/input''').click()
+    time.sleep(5)
+    driver.find_element(By.XPATH,'''//*[@id="contentWrapper"]/div/div/div[2]/div[1]/input''').click()
+    #updating the stocks
+    driver.find_element(By.XPATH, '''//*[@id="contentWrapper"]/div/div/div[2]/div[6]/div[2]/div/div[2]/div/div[1]/ul/li[2]''').click()
+    driver.find_element(By.XPATH, '''//*[@id="contentWrapper"]/div/div/div[2]/div[6]/div[2]/div/div[2]/div/div[2]/div[2]/form/div/div[4]/input''').click()
     time.sleep(10)
     driver.close()
